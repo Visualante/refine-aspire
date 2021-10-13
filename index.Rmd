@@ -1,7 +1,7 @@
 ---
 title: "OpenRefine for Talis Aspire users"
 author: "D. Spence"
-date: "2nd of October, 2021"
+date: "13th of October, 2021"
 output: 
   html_document:
     theme: darkly
@@ -10,6 +10,7 @@ output:
       collapsed: yes
     toc_depth: 3
     fig_caption: false
+    self_contained: false
 bibliography: references.bib
 nocite: '@*'
 ---
@@ -23,13 +24,20 @@ knitr::opts_chunk$set(echo = TRUE)
 [OpenRefine](https://openrefine.org/) (formerly Google Refine) is a tool for [exploring data](https://youtu.be/B70J_H_zAWM) sets, [cleaning and transforming](https://youtu.be/cO8NVCs_Ba0) it into something useful and [enhancing it](https://youtu.be/5tsyz3ibYzk) into something even more useful. The goal of this guide is to explain the basics of OpenRefine using Talis Aspire data as an example. OpenRefine supports file types like XLS, CSV and MARC so it is very versatile for library workers.
 
 I have been using OpenRefine to proactively find problems in reading lists and fix them procedurally. On the reports tab of Talis reading lists you can export a list of all published items in a comma separated values files. This can be then be imported into OpenRefine. Below I have included a table explaining what each of the fields translates to.
-The instructions to install OpenRefine can be found on the [OpenRefine download page](https://openrefine.org/download.html). It supports Windows, Mac and Linux and runs in your web browser. I have had success running it at home and on office computers, if you do not know whether you have Java installed on Windows the version that comes bundled with Java is the easiest way to get started. As most university staff are no longer permitted to install software on campus computers I have requested OpenRefine be to the [University of Essex Software Hub](https://software.essex.ac.uk). This is currently in progress as of September 2021.
+
+## Installing OpenRefine
+
+The instructions to install OpenRefine can be found on the [OpenRefine download page](https://openrefine.org/download.html). It supports Windows, Mac and Linux and runs in your web browser. I have had success running it on my personal computer and on office computers. If you do not know whether you have Java installed on Windows, the version that comes bundled with Java is the easiest way to get started. As most university staff are no longer permitted to install software on campus computers I have requested OpenRefine be to the [University of Essex Software Hub](https://software.essex.ac.uk). This is currently in progress as of September 2021.
 
 ## Downloading Talis Aspire data
 
 Data can be downloaded from [Talis Aspire Reports](https://essex.rl.talis.com/reports/523E347F-38CF-E58D-929C-326B7FF25E75.html). For this guide I have been focusing on the All List Items section as my role focuses on checking lists for errors. It is worth bearing in mind that larger data sets require more powerful computers. When I tried to import 603,000 items my computer seized up due to a lack of memory. By default OpenRefine caps out at one gigabyte (GB) of memory, jumping up to 2GB and 4GB allowed me to import the full data set with ease. Instructions on how to do this can be found in the [Using OpenRefine book](https://subscription.packtpub.com/book/big_data_and_business_intelligence/9781783289080/1/ch01lvl1sec15/recipe-7-going-for-more-memory). It is best practice to only work on what you think you need to because actions can get sluggish.
 
 Filtering list status only to only published brings it down to a manageable 129,000. Depending on the status of rollover you may want to filter by Time Period to catch items that are unpublished. Once you have your data click download CSV. This will e.mail the Talis user a link to download the CSV file. For all published items this came out to about 53 megabytes.
+
+```{r, out.width = "98%", echo=FALSE, fig.align="center", fig.cap="Screenshot of the Talis Aspire's new All List Items report with filters for item, list types and date range."}
+knitr::include_graphics("images/talisExportToCSV.png")
+```
 
 ## Importing data into Refine
 
@@ -113,13 +121,77 @@ value.replace("https://doi.org/", "https://0-doi-org.serlib0.essex.ac.uk/")
 ```
 If you delete the s in https you can see in real-time how the expression works on different cells. Now if we want to work on more than one type of cell in one go we can chain them using if logic as below.
 
-I have found this technique useful for fixing DOI, HeinOnline, Westlaw URLs and I believe it will be useful for Box of Broadcasts also. Using Joe Munzer's tool allows us to fix hundreds of URLs in one go that would take hours to find and fix by hand. If the library switches to a different proxy service this will come in very useful. One thing I have started doing is including a hashtag in the library note for #openaccess. In the future I do not run the expressions script on open access journals because it would be locking free content behind a login.
+```
+if URL contains = https://doi.org/ (A)
+  swap for https://0-doi-org.serlib0.essex.ac.uk/ (B)
+  job done, move to next cell
+else if URL contains http://doi.org/ (C)
+  swap for https://0-doi.org.serlib0.essex.ac.uk/ (D)
+  job done, move to next cell
+else if URL contains https://dx.doi.org/ (E)
+  swap for https://0-doi-org.serlib0.essex.ac.uk/ (F)
+  move to next cell
+else if URL contains http://dx.doi.org/ (G)
+  swap for https://0-dx-doi.org.serlib0.essex.ac.uk/ (H)
+  move to next cell
+give up
+```
+
+To try and make it simpler I have written out the following which corresponds to the letters above: If A is true do B, otherwise if C is true do D, otherwise if E is true do F, otherwise if G is true do H, otherwise give up. 
+
+All it is trying to do is say try this, if that doesn’t work try the next thing until you get to the end. Sometimes it isn’t possible to write code for every use case. It is a garbage-in-garbage-out process. If you have a dozen odd URLs at the end that you can’t fix programmatically it may be quicker to correct those manually. Wrapping it up in GREL looks something like this:
+
+```javascript
+if(value.startsWith("https://doi.org/"),value.replace("https://doi.org", "https://0-doi-org.serlib0.essex.ac.uk/"),if(value.startsWith("http://doi.org/"),value.replace("http://doi.org", "https://0-doi-org.serlib0.essex.ac.uk/"), if(value.startsWith("https://dx.doi.org/"), value.replace("https://dx.doi.org", "https://0-dx-doi-org.serlib0.essex.ac.uk/"), if(value.startsWith("http://dx.doi.org/"),value.replace("http://dx.doi.org", "https://0-dx-doi-org.serlib0.essex.ac.uk/"), value)))) 
+```
+
+You have to be careful with any fail states because the bulk upload tool will interpret an empty null field as you saying delete the existing URL. It’s always worthwhile taking a glance at your fields before uploading in case you end up telling it to delete URLs that still need fixing.
+
+I have chosen to force https instead of preserving http in line with [Crossref’s recommendation](https://www.crossref.org/blog/linking-dois-using-https-the-background-to-our-new-guidelines/). I have not come across any examples of https causing an issue. Where an article is open access I have left it as doi.org because it is against the spirit of open access to lock it behind an Essex account. One way we could isolate these is by including a hashtag #openaccess in the library note field or including #oa after the URL to exclude those URLs.
+
+```{r, out.width = "98%", echo=FALSE, fig.align="center", fig.cap="Screenshot of the Add column window in OpenRefine. The find and replace script is working on a variety of doi.org URLs to add the Essex proxy."}
+knitr::include_graphics("images/DOIscript.png")
+```
+
+The helpful yellow popup tells us that we have modified 101 fields which is what we filtered to. Checking these URLs they appear to work great.
+
+```{r, out.width = "98%", echo=FALSE, fig.align="center", fig.cap="Screenshot of the changes OpenRefine has made. The number of records in the pop up matches the record number confirming action has been taken on every field."}
+knitr::include_graphics("images/changedRecords.png")
+```
+
+I have found this technique useful for fixing DOI, HeinOnline, Westlaw URLs and I believe it will be useful for Box of Broadcasts also. Using Joe Munzer's tool allows us to fix hundreds of URLs in one go that would take hours to find and fix by hand. If the library switches to a different proxy service this will come in very useful. One thing I have started doing is including a hashtag in the library note for #openaccess. This way when the script is run in the future it does not alter open access items because that would be locking free content behind an Essex login.
+
+## Exporting for Joe's bulk upload tools
+
+Exporting is really easy. Three components are required Item ID, Old URL and New URL. To get the Item ID you will need to take the Item Link Collumn and modify it using the following command.
+
+```javascript
+  value.replace("http://readinglists.essex.ac.uk/items/","") 
+```
+
+This should look something like the following:
+
+```{r, out.width = "98%", echo=FALSE, fig.align="center", fig.cap="Screenshot of the transform cell window stripping out the pre-fix of the reading list URL leaving only the list code."}
+knitr::include_graphics("images/openRefineFindAndReplace.png")
+```
+
+Initially I tried using the `value.slice(38)` function. I found the replace method to be more precise because URLs can be so inconsistent. Slice can be really handy if you want to extract something from the middle because you can put in a second field to remove leading and trailing characters. 
+
+Once you have finished transforming your New URL field you just click **Export > Comma-separated value**.
+
+
 
 # Enhancing data
 
 ## Rows vs. records
 
+Open Refine has two options in the top left, rows and records. Rows behaves like normal spreadsheet software where each line has its own number. Records for Aspire data is more bookmark focused, so a single bookmark would be one record number but could have multiple lines in the record for each appearance on various modules and reading lists. Aspire stores multiple ISBNs, URLs, authors in semicolon separated list. The easiest way to compare between two databases is to get an exact match. If we go to **ISBN13 > Edit Cells > Split multi-valued cells...** you can split the field into several rows using the ; delimiter. This will create a row for each ISBN13 in your matching selection. If you are comparing ISBNs between databases it is much simpler to compare data one piece at a time and splitting into rows allows this. If you’re done with your comparison or editing and want to go back just reverse the process by clicking **ISBN13 > Edit Cells > Join multi-valued cells...** using the delimiter of your choice.
+
 ## Cross command
+
+The Cell cross command is one of the easiest ways to find matching data between database A and database B, returning the cell of your from database B to enhance database B. One use case I have found is comparing ISBN13 or DOI in the reading list database with an open access repository/directory. In this example I am continuing from the above section where I split out the ISBN13s into rows. I am then going to do the same on the directory of open access book, which I have imported into Open Refine using the project title DOAB. The below video from [Ruth Tillman's tutorial](https://ruthtillman.com/talk/cell-cross-webinar-2020-03/) is how I learned to use this tool.
+
+<iframe width="784" height="425" src="https://www.youtube.com/embed/4ebiUv8cgOM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 ## Regular expressions
 
@@ -158,8 +230,10 @@ If you want to do this on scale you can use it in OpenRefine by concatenating th
 
 ## Preparing data
 
-# Questions
 
-This guide is a work in progress. I am keen to collaborate on solutions if you think OpenRefine could help with your work. In the bibliography below I have included some links that I found useful while learning OpenRefine and writing this guide. If you have any comments, feedback or suggestions please get in touch with me by [email](mailto:d.spence@essex.ac.uk?subject=OpenRefine for Talis Aspire users).
+
+# Round up
+
+This guide is a work in progress, I wanted to make something very specific to our platforms and not reinvent the wheel where great tutorials already exist. [Library Carpentry workshop](https://librarycarpentry.org/lc-open-refine/) is one example. I want to thank Samantha at Suffolk Cooperative and the volunteers who gave their time to deliver it for allowing me to attend their workshops which covered several subjects. I am keen to collaborate on solutions if you think OpenRefine could help with your work. In the bibliography below I have included some links that I found useful while learning OpenRefine and writing this guide. If you have any comments, feedback or suggestions please get in touch with me by [email](mailto:d.spence@essex.ac.uk?subject=OpenRefine for Talis Aspire users).
 
 # Bibliography
