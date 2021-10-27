@@ -1,7 +1,7 @@
 ---
 title: "OpenRefine for Talis Aspire users"
 author: "D. Spence"
-date: "13th of October, 2021"
+date: "27th of October, 2021"
 output: 
   html_document:
     theme: darkly
@@ -10,9 +10,10 @@ output:
       collapsed: yes
     toc_depth: 3
     fig_caption: false
-    self_contained: false
+    self_contained: true
 bibliography: references.bib
 nocite: '@*'
+lang: en
 ---
 
 ```{r setup, include=FALSE}
@@ -191,7 +192,10 @@ Open Refine has two options in the top left, rows and records. Rows behaves like
 
 The Cell cross command is one of the easiest ways to find matching data between database A and database B, returning the cell of your from database B to enhance database B. One use case I have found is comparing ISBN13 or DOI in the reading list database with an open access repository/directory. In this example I am continuing from the above section where I split out the ISBN13s into rows. I am then going to do the same on the directory of open access book, which I have imported into Open Refine using the project title DOAB. The below video from [Ruth Tillman's tutorial](https://ruthtillman.com/talk/cell-cross-webinar-2020-03/) is how I learned to use this tool.
 
-<iframe width="784" height="425" src="https://www.youtube.com/embed/4ebiUv8cgOM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<div style="text-align:center">
+  <iframe width="98%" height="425" src="https://www.youtube.com/embed/4ebiUv8cgOM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen data-external="1"></iframe>
+</div>
+
 
 ## Regular expressions
 
